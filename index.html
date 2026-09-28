@@ -21,6 +21,11 @@
     .counter-val { font-size: 24px; font-weight: bold; color: #0b57d0; }
     .counter-lbl { font-size: 11px; color: #444; margin-top: 2px; }
 
+    /* Key Box */
+    .key-box { margin-bottom: 14px; text-align: left; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #e1e4e8; }
+    .key-box label { font-size: 12px; font-weight: 600; color: #444; display: block; margin-bottom: 4px; }
+    .key-box input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; }
+
     /* Action Buttons */
     .cam-btn {
       display: flex; align-items: center; justify-content: center; width: 100%; padding: 16px;
@@ -61,6 +66,12 @@
     <h2>📷 Staff Form Fast Scanner</h2>
     <p>Ambedkar Public School - Offline Memory Scanner</p>
 
+    <!-- API Key Input Field (फोन के ब्राउज़र में ही एक बार सेव रहेगी) -->
+    <div class="key-box">
+      <label for="apiKeyInput">Gemini API Key (केवल एक बार यहाँ पेस्ट करें):</label>
+      <input type="password" id="apiKeyInput" placeholder="AQ... या AIzaSy... की यहाँ पेस्ट करें" oninput="saveApiKey(this.value)">
+    </div>
+
     <div class="counter-grid">
       <div class="counter-box">
         <div class="counter-val" id="queueCount">0</div>
@@ -91,9 +102,6 @@
   </div>
 
   <script>
-    // आपकी Gemini Key
-    const GEMINI_API_KEY = "AQ.Ab8RN6LGuZZo4VpSC9NXfF93miwJ4dr39kPpjp54yLhcIpHlog";
-
     // एक्सेल कॉलम हेडर (फॉर्म के अनुसार)
     const EXCEL_HEADERS = [
       "Sl No", "Timestamp", "Session", "Staff ID", "Status", "Staff Name", 
@@ -109,8 +117,21 @@
     let isProcessing = false;
     let records = [];
 
+    function saveApiKey(val) {
+      localStorage.setItem("saved_gemini_key", val.trim());
+    }
+
+    function getApiKey() {
+      return localStorage.getItem("saved_gemini_key") || "";
+    }
+
     // पेज खुलते ही लोकल मेमोरी से पुराना डेटा लोड करना
     window.onload = function() {
+      const savedKey = getApiKey();
+      if (savedKey) {
+        document.getElementById('apiKeyInput').value = savedKey;
+      }
+
       const saved = localStorage.getItem("scanned_staff_records");
       if (saved) {
         records = JSON.parse(saved);
@@ -120,6 +141,12 @@
     };
 
     function openCamera() {
+      const key = getApiKey();
+      if (!key) {
+        alert("कृपया पहले ऊपर वाले बॉक्स में अपनी API Key पेस्ट करें!");
+        document.getElementById('apiKeyInput').focus();
+        return;
+      }
       document.getElementById('fileInput').click();
     }
 
@@ -132,7 +159,7 @@
         compressAndQueue(event.target.result);
       };
       reader.readAsDataURL(file);
-      e.target.value = ''; // रिसेट ताकि तुरंत अगली फ़ोटो ली जा सके
+      e.target.value = '';
     });
 
     // फ़ोटो को ऑप्टिमाइज़ करके कतार में डालना
@@ -206,6 +233,12 @@
     async function processQueue() {
       if (isProcessing || queue.length === 0) return;
 
+      const apiKey = getApiKey();
+      if (!apiKey) {
+        alert("API Key नहीं मिली। कृपया Key दर्ज करें।");
+        return;
+      }
+
       isProcessing = true;
       const current = queue[0];
       updateLogItem(current.id, "AI पढ़ रहा है...", "badge-pending");
@@ -225,8 +258,7 @@ Rules:
   "accountNumber": "", "ifsc": "", "upiId": "", "declarationDate": "", "declarationPlace": "", "signatureText": ""
 }`;
 
-        // Gemini API कॉल
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
         
         const response = await fetch(apiUrl, {
           method: "POST",
@@ -302,7 +334,7 @@ Rules:
         queue.shift();
         isProcessing = false;
         updateCounters();
-        processQueue(); // कतार में अगली फ़ोटो प्रोसेस करें
+        processQueue();
       }
     }
 
@@ -313,16 +345,13 @@ Rules:
         return;
       }
 
-      // JSON से Excel शीट बनाना
       const worksheet = XLSX.utils.json_to_sheet(records, { header: EXCEL_HEADERS });
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Staff Details");
 
-      // कॉलम की चौड़ाई ऑटो-सेट करना
       const colWidths = EXCEL_HEADERS.map(h => ({ wch: Math.max(h.length, 16) }));
       worksheet['!cols'] = colWidths;
 
-      // फ़ाइल डाउनलोड
       const dateStr = new Date().toISOString().slice(0, 10);
       XLSX.writeFile(workbook, `Ambedkar_Public_School_Staff_${dateStr}.xlsx`);
     }
@@ -330,7 +359,7 @@ Rules:
     // नया बैच शुरू करने के लिए मेमोरी क्लियर करना
     function clearAllData() {
       if (records.length === 0 && queue.length === 0) return;
-      const confirmClear = confirm(`क्या आप सभी ${records.length} रिकॉर्ड्स साफ़ करके नया बैच शुरू करना चाहते हैं? (डाउनलोड किया हुआ सुरक्षित रहेगा)`);
+      const confirmClear = confirm(`क्या आप सभी ${records.length} रिकॉर्ड्स साफ़ करके नया बैच शुरू करना चाहते हैं?`);
       if (confirmClear) {
         records = [];
         queue = [];
