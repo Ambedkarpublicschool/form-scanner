@@ -66,10 +66,10 @@
     <h2>📷 Staff Form Fast Scanner</h2>
     <p>Ambedkar Public School - Offline Memory Scanner</p>
 
-    <!-- API Key Input Field (फोन के ब्राउज़र में ही एक बार सेव रहेगी) -->
+    <!-- API Key Input Field -->
     <div class="key-box">
-      <label for="apiKeyInput">Gemini API Key (केवल एक बार यहाँ पेस्ट करें):</label>
-      <input type="password" id="apiKeyInput" placeholder="AQ... या AIzaSy... की यहाँ पेस्ट करें" oninput="saveApiKey(this.value)">
+      <label for="apiKeyInput">Gemini API Key (यहाँ पेस्ट करें):</label>
+      <input type="password" id="apiKeyInput" placeholder="अपनी API Key पेस्ट करें" oninput="saveApiKey(this.value)">
     </div>
 
     <div class="counter-grid">
@@ -122,7 +122,7 @@
     }
 
     function getApiKey() {
-      return localStorage.getItem("saved_gemini_key") || "";
+      return (localStorage.getItem("saved_gemini_key") || "").trim();
     }
 
     // पेज खुलते ही लोकल मेमोरी से पुराना डेटा लोड करना
@@ -162,7 +162,7 @@
       e.target.value = '';
     });
 
-    // फ़ोटो को ऑप्टिमाइज़ करके कतार में डालना
+    // फ़ोटो को कंप्रेस करके कतार में डालना
     function compressAndQueue(dataUrl) {
       const img = new Image();
       img.onload = function() {
@@ -258,21 +258,15 @@ Rules:
   "accountNumber": "", "ifsc": "", "upiId": "", "declarationDate": "", "declarationPlace": "", "signatureText": ""
 }`;
 
-        // AQ और AIzaSy दोनों प्रकार की की को सपोर्ट करने वाला एंडपॉइंट और हेडर
-        let apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
-        let headers = { "Content-Type": "application/json" };
-
-        if (apiKey.startsWith("AIzaSy")) {
-          apiUrl += "?key=" + apiKey;
-        } else {
-          // AQ. टोकन के लिए हेडर
-          headers["x-goog-api-key"] = apiKey;
-          headers["Authorization"] = "Bearer " + apiKey;
-        }
-
+        // URL में query parameter और Headers दोनों में सुरक्षित पास करना
+        const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + encodeURIComponent(apiKey);
+        
         const response = await fetch(apiUrl, {
           method: "POST",
-          headers: headers,
+          headers: { 
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey
+          },
           body: JSON.stringify({
             contents: [{
               parts: [
@@ -332,7 +326,7 @@ Rules:
           "Signature Text": extracted.signatureText || ""
         };
 
-        // ब्राउज़र की मेमोरी (LocalStorage) में सुरक्षित करना
+        // ब्राउज़र की लोकल स्टोरेज में सुरक्षित करना
         records.push(record);
         localStorage.setItem("scanned_staff_records", JSON.stringify(records));
 
