@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Staff Form Scanner - Ambedkar Public School</title>
   
-  <!-- SheetJS लाइब्रेरी: सीधे ब्राउज़र में एक्सेल फ़ाइल (.xlsx) बनाने के लिए -->
+  <!-- SheetJS Library -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <style>
@@ -68,41 +68,40 @@
 
     <!-- API Key Input Field -->
     <div class="key-box">
-      <label for="apiKeyInput">Gemini API Key (यहाँ पेस्ट करें):</label>
-      <input type="password" id="apiKeyInput" placeholder="अपनी API Key पेस्ट करें" oninput="saveApiKey(this.value)">
+      <label for="apiKeyInput">Gemini API Key (Yahan paste karein):</label>
+      <input type="password" id="apiKeyInput" placeholder="Apni API Key paste karein" oninput="saveApiKey(this.value)">
     </div>
 
     <div class="counter-grid">
       <div class="counter-box">
         <div class="counter-val" id="queueCount">0</div>
-        <div class="counter-lbl">कतार में (Queue)</div>
+        <div class="counter-lbl">Qataar me (Queue)</div>
       </div>
       <div class="counter-box">
         <div class="counter-val" id="savedCount">0</div>
-        <div class="counter-lbl">मेमोरी में सुरक्षित</div>
+        <div class="counter-lbl">Memory me save</div>
       </div>
     </div>
 
-    <!-- सीधे बैक कैमरा खोलने के लिए -->
+    <!-- Hidden camera input -->
     <input type="file" id="fileInput" accept="image/*" capture="environment">
 
-    <button class="cam-btn" onclick="openCamera()">📸 फ़ोटो खींचें (Next Form)</button>
+    <button class="cam-btn" onclick="openCamera()">📸 Photo Khinchein (Next Form)</button>
     <button class="excel-btn" onclick="exportToExcel()">📥 Download Master Excel (.xlsx)</button>
-    <button class="clear-btn" onclick="clearAllData()">🗑️ नया बैच शुरू करें (Clear All)</button>
+    <button class="clear-btn" onclick="clearAllData()">🗑️ Naya Batch Shuru Karein (Clear All)</button>
   </div>
 
   <div class="card">
     <div class="list-header">
-      <span>स्कैन किए गए फ़ॉर्म</span>
-      <span id="storageInfo">लोकल मेमोरी चालू</span>
+      <span>Scan kiye gaye forms</span>
+      <span id="storageInfo">Local Memory ON</span>
     </div>
     <div class="log-box" id="logList">
-      <div style="color: #888; text-align: center; padding: 25px;">अभी कोई फ़ॉर्म स्कैन नहीं हुआ है। फ़ोटो खींचना शुरू करें!</div>
+      <div style="color: #888; text-align: center; padding: 25px;">Abhi koi form scan nahi hua hai. Photo khinchna shuru karein!</div>
     </div>
   </div>
 
   <script>
-    // एक्सेल कॉलम हेडर (फॉर्म के अनुसार)
     const EXCEL_HEADERS = [
       "Sl No", "Timestamp", "Session", "Staff ID", "Status", "Staff Name", 
       "Father / Husband Name", "DOB", "Gender", "Blood Group", 
@@ -125,7 +124,6 @@
       return (localStorage.getItem("saved_gemini_key") || "").trim();
     }
 
-    // पेज खुलते ही लोकल मेमोरी से पुराना डेटा लोड करना
     window.onload = function() {
       const savedKey = getApiKey();
       if (savedKey) {
@@ -143,7 +141,7 @@
     function openCamera() {
       const key = getApiKey();
       if (!key) {
-        alert("कृपया पहले ऊपर वाले बॉक्स में अपनी API Key पेस्ट करें!");
+        alert("Kripya pehle upar wale box me apni API Key paste karein!");
         document.getElementById('apiKeyInput').focus();
         return;
       }
@@ -162,7 +160,6 @@
       e.target.value = '';
     });
 
-    // फ़ोटो को कंप्रेस करके कतार में डालना
     function compressAndQueue(dataUrl) {
       const img = new Image();
       img.onload = function() {
@@ -186,7 +183,7 @@
         const itemId = 'item_' + Date.now();
         queue.push({ id: itemId, base64: base64, time: new Date().toLocaleTimeString("en-IN") });
         
-        addLogItem(itemId, "फ़ोटो ली गई...", "badge-pending");
+        addLogItem(itemId, "Photo li gayi...", "badge-pending");
         updateCounters();
         processQueue();
       };
@@ -195,12 +192,12 @@
 
     function addLogItem(id, text, badgeClass) {
       const logList = document.getElementById('logList');
-      if (logList.innerHTML.includes('अभी कोई फ़ॉर्म स्कैन नहीं हुआ')) logList.innerHTML = '';
+      if (logList.innerHTML.includes('Abhi koi form')) logList.innerHTML = '';
       
       const div = document.createElement('div');
       div.className = 'log-item';
       div.id = id;
-      div.innerHTML = `<span>फ़ॉर्म #${records.length + queue.length}</span> <span class="badge ${badgeClass}">${text}</span>`;
+      div.innerHTML = `<span>Form #${records.length + queue.length}</span> <span class="badge ${badgeClass}">${text}</span>`;
       logList.insertBefore(div, logList.firstChild);
     }
 
@@ -224,24 +221,23 @@
       records.slice().reverse().forEach((r, idx) => {
         const div = document.createElement('div');
         div.className = 'log-item';
-        div.innerHTML = `<span>#${records.length - idx}: <b>${r["Staff Name"] || "अज्ञात"}</b></span> <span class="badge badge-done">सेव है</span>`;
+        div.innerHTML = `<span>#${records.length - idx}: <b>${r["Staff Name"] || "Agyaat"}</b></span> <span class="badge badge-done">Save hai</span>`;
         logList.appendChild(div);
       });
     }
 
-    // कतार में से एक-एक करके प्रोसेस करना
     async function processQueue() {
       if (isProcessing || queue.length === 0) return;
 
       const apiKey = getApiKey();
       if (!apiKey) {
-        alert("API Key नहीं मिली। कृपया Key दर्ज करें।");
+        alert("API Key nahi mili. Kripya Key darj karein.");
         return;
       }
 
       isProcessing = true;
       const current = queue[0];
-      updateLogItem(current.id, "AI पढ़ रहा है...", "badge-pending");
+      updateLogItem(current.id, "AI padh raha hai...", "badge-pending");
 
       try {
         const prompt = `Analyze this Ambedkar Public School Staff Registration Form.
@@ -258,8 +254,8 @@ Rules:
   "accountNumber": "", "ifsc": "", "upiId": "", "declarationDate": "", "declarationPlace": "", "signatureText": ""
 }`;
 
-        // URL में query parameter और Headers दोनों में सुरक्षित पास करना
-        const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + encodeURIComponent(apiKey);
+        // Gemini 3.8 Flash model endpoint
+        const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=" + encodeURIComponent(apiKey);
         
         const response = await fetch(apiUrl, {
           method: "POST",
@@ -294,7 +290,6 @@ Rules:
 
         const extracted = JSON.parse(rawText.trim());
 
-        // रो डेटा तैयार करना
         const record = {
           "Sl No": records.length + 1,
           "Timestamp": new Date().toLocaleString("en-IN"),
@@ -326,15 +321,14 @@ Rules:
           "Signature Text": extracted.signatureText || ""
         };
 
-        // ब्राउज़र की लोकल स्टोरेज में सुरक्षित करना
         records.push(record);
         localStorage.setItem("scanned_staff_records", JSON.stringify(records));
 
-        updateLogItem(current.id, (record["Staff Name"] || "फ़ॉर्म") + " (सेव हुआ)", "badge-done");
+        updateLogItem(current.id, (record["Staff Name"] || "Form") + " (Save hua)", "badge-done");
       } catch (err) {
         console.error(err);
-        alert("प्रोसेसिंग में एरर: " + err.message);
-        updateLogItem(current.id, "त्रुटि (पुनः खींचें)", "badge-error");
+        alert("Processing me error: " + err.message);
+        updateLogItem(current.id, "Truti (Dobara khinchein)", "badge-error");
       } finally {
         queue.shift();
         isProcessing = false;
@@ -343,10 +337,9 @@ Rules:
       }
     }
 
-    // सभी रिकॉर्ड्स को एक साथ .xlsx में डाउनलोड करना
     function exportToExcel() {
       if (records.length === 0) {
-        alert("डाउनलोड करने के लिए अभी कोई रिकॉर्ड उपलब्ध नहीं है।");
+        alert("Download karne ke liye abhi koi record uplabdh nahi hai.");
         return;
       }
 
@@ -361,16 +354,15 @@ Rules:
       XLSX.writeFile(workbook, `Ambedkar_Public_School_Staff_${dateStr}.xlsx`);
     }
 
-    // नया बैच शुरू करने के लिए मेमोरी क्लियर करना
     function clearAllData() {
       if (records.length === 0 && queue.length === 0) return;
-      const confirmClear = confirm(`क्या आप सभी ${records.length} रिकॉर्ड्स साफ़ करके नया बैच शुरू करना चाहते हैं?`);
+      const confirmClear = confirm(`Kya aap sabhi ${records.length} records saaf karke naya batch shuru karna chahte hain?`);
       if (confirmClear) {
         records = [];
         queue = [];
         localStorage.removeItem("scanned_staff_records");
         updateCounters();
-        document.getElementById('logList').innerHTML = '<div style="color: #888; text-align: center; padding: 25px;">मेमोरी खाली हो गई। नए सिरे से स्कैन करें!</div>';
+        document.getElementById('logList').innerHTML = '<div style="color: #888; text-align: center; padding: 25px;">Memory khali ho gayi. Naye sire se scan karein!</div>';
       }
     }
   </script>
