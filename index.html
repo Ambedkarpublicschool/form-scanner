@@ -1,1 +1,344 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Staff Form Scanner - Ambedkar Public School</title>
+  
+  <!-- SheetJS लाइब्रेरी: सीधे ब्राउज़र में एक्सेल फ़ाइल (.xlsx) बनाने के लिए -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { margin: 0; padding: 12px; background: #f0f2f5; color: #1c1e21; text-align: center; }
+    .card { background: white; border-radius: 14px; padding: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); margin-bottom: 12px; }
+    h2 { margin: 0 0 4px 0; font-size: 19px; color: #0b57d0; }
+    p { margin: 0 0 12px 0; font-size: 12px; color: #5f6368; }
+    
+    /* Stats Bar */
+    .counter-grid { display: flex; justify-content: space-around; margin: 12px 0; gap: 8px; }
+    .counter-box { background: #f8f9fa; border: 1px solid #dadce0; border-radius: 10px; padding: 8px; flex: 1; }
+    .counter-val { font-size: 24px; font-weight: bold; color: #0b57d0; }
+    .counter-lbl { font-size: 11px; color: #444; margin-top: 2px; }
+
+    /* Action Buttons */
+    .cam-btn {
+      display: flex; align-items: center; justify-content: center; width: 100%; padding: 16px;
+      font-size: 17px; font-weight: bold; background: #0b57d0; color: white;
+      border: none; border-radius: 10px; cursor: pointer; box-shadow: 0 4px 10px rgba(11,87,208,0.25);
+      margin-bottom: 10px;
+    }
+    .cam-btn:active { background: #0842a0; }
+    
+    .excel-btn {
+      display: flex; align-items: center; justify-content: center; width: 100%; padding: 14px;
+      font-size: 15px; font-weight: bold; background: #188038; color: white;
+      border: none; border-radius: 10px; cursor: pointer; margin-bottom: 8px;
+    }
+    .excel-btn:active { background: #13662c; }
+
+    .clear-btn {
+      width: 100%; padding: 10px; font-size: 13px; font-weight: 600;
+      background: #fce8e6; color: #c5221f; border: 1px solid #fad2cf;
+      border-radius: 8px; cursor: pointer;
+    }
+    
+    #fileInput { display: none; }
+    
+    /* List View */
+    .list-header { font-weight: bold; font-size: 13px; margin-bottom: 8px; text-align: left; display: flex; justify-content: space-between; }
+    .log-box { text-align: left; max-height: 320px; overflow-y: auto; font-size: 12px; }
+    .log-item { padding: 9px 10px; border-bottom: 1px solid #f1f3f4; display: flex; justify-content: space-between; align-items: center; }
+    .badge { padding: 3px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; }
+    .badge-pending { background: #fef7e0; color: #b06000; }
+    .badge-done { background: #e6f4ea; color: #137333; }
+    .badge-error { background: #fce8e6; color: #c5221f; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>📷 Staff Form Fast Scanner</h2>
+    <p>Ambedkar Public School - Offline Memory Scanner</p>
+
+    <div class="counter-grid">
+      <div class="counter-box">
+        <div class="counter-val" id="queueCount">0</div>
+        <div class="counter-lbl">कतार में (Queue)</div>
+      </div>
+      <div class="counter-box">
+        <div class="counter-val" id="savedCount">0</div>
+        <div class="counter-lbl">मेमोरी में सुरक्षित</div>
+      </div>
+    </div>
+
+    <!-- सीधे बैक कैमरा खोलने के लिए -->
+    <input type="file" id="fileInput" accept="image/*" capture="environment">
+
+    <button class="cam-btn" onclick="openCamera()">📸 फ़ोटो खींचें (Next Form)</button>
+    <button class="excel-btn" onclick="exportToExcel()">📥 Download Master Excel (.xlsx)</button>
+    <button class="clear-btn" onclick="clearAllData()">🗑️ नया बैच शुरू करें (Clear All)</button>
+  </div>
+
+  <div class="card">
+    <div class="list-header">
+      <span>स्कैन किए गए फ़ॉर्म</span>
+      <span id="storageInfo">लोकल मेमोरी चालू</span>
+    </div>
+    <div class="log-box" id="logList">
+      <div style="color: #888; text-align: center; padding: 25px;">अभी कोई फ़ॉर्म स्कैन नहीं हुआ है। फ़ोटो खींचना शुरू करें!</div>
+    </div>
+  </div>
+
+  <script>
+    // आपकी Gemini Key
+    const GEMINI_API_KEY = "AQ.Ab8RN6LGuZZo4VpSC9NXfF93miwJ4dr39kPpjp54yLhcIpHlog";
+
+    // एक्सेल कॉलम हेडर (फॉर्म के अनुसार)
+    const EXCEL_HEADERS = [
+      "Sl No", "Timestamp", "Session", "Staff ID", "Status", "Staff Name", 
+      "Father / Husband Name", "DOB", "Gender", "Blood Group", 
+      "Highest Qualification", "Total Experience", "Mobile Number", 
+      "Alt Mobile", "Email ID", "Current Address", "Permanent Address", 
+      "Designation", "Date of Joining (DOJ)", "Monthly Salary", 
+      "Aadhaar Number", "Bank Name", "Account Number", "IFSC Code", 
+      "UPI ID", "Declaration Date", "Declaration Place", "Signature Text"
+    ];
+
+    let queue = [];
+    let isProcessing = false;
+    let records = [];
+
+    // पेज खुलते ही लोकल मेमोरी से पुराना डेटा लोड करना
+    window.onload = function() {
+      const saved = localStorage.getItem("scanned_staff_records");
+      if (saved) {
+        records = JSON.parse(saved);
+        updateCounters();
+        renderExistingLogs();
+      }
+    };
+
+    function openCamera() {
+      document.getElementById('fileInput').click();
+    }
+
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        compressAndQueue(event.target.result);
+      };
+      reader.readAsDataURL(file);
+      e.target.value = ''; // रिसेट ताकि तुरंत अगली फ़ोटो ली जा सके
+    });
+
+    // फ़ोटो को ऑप्टिमाइज़ करके कतार में डालना
+    function compressAndQueue(dataUrl) {
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1300;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_WIDTH) {
+          height = Math.round((height * MAX_WIDTH) / width);
+          width = MAX_WIDTH;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const base64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+        
+        const itemId = 'item_' + Date.now();
+        queue.push({ id: itemId, base64: base64, time: new Date().toLocaleTimeString("en-IN") });
+        
+        addLogItem(itemId, "फ़ोटो ली गई...", "badge-pending");
+        updateCounters();
+        processQueue();
+      };
+      img.src = dataUrl;
+    }
+
+    function addLogItem(id, text, badgeClass) {
+      const logList = document.getElementById('logList');
+      if (logList.innerHTML.includes('अभी कोई फ़ॉर्म स्कैन नहीं हुआ')) logList.innerHTML = '';
+      
+      const div = document.createElement('div');
+      div.className = 'log-item';
+      div.id = id;
+      div.innerHTML = `<span>फ़ॉर्म #${records.length + queue.length}</span> <span class="badge ${badgeClass}">${text}</span>`;
+      logList.insertBefore(div, logList.firstChild);
+    }
+
+    function updateLogItem(id, text, badgeClass) {
+      const item = document.getElementById(id);
+      if (item) {
+        item.querySelector('.badge').className = `badge ${badgeClass}`;
+        item.querySelector('.badge').innerText = text;
+      }
+    }
+
+    function updateCounters() {
+      document.getElementById('queueCount').innerText = queue.length;
+      document.getElementById('savedCount').innerText = records.length;
+    }
+
+    function renderExistingLogs() {
+      const logList = document.getElementById('logList');
+      if (records.length === 0) return;
+      logList.innerHTML = '';
+      records.slice().reverse().forEach((r, idx) => {
+        const div = document.createElement('div');
+        div.className = 'log-item';
+        div.innerHTML = `<span>#${records.length - idx}: <b>${r["Staff Name"] || "अज्ञात"}</b></span> <span class="badge badge-done">सेव है</span>`;
+        logList.appendChild(div);
+      });
+    }
+
+    // कतार में से एक-एक करके प्रोसेस करना
+    async function processQueue() {
+      if (isProcessing || queue.length === 0) return;
+
+      isProcessing = true;
+      const current = queue[0];
+      updateLogItem(current.id, "AI पढ़ रहा है...", "badge-pending");
+
+      try {
+        const prompt = `Analyze this Ambedkar Public School Staff Registration Form.
+Extract all printed fields and handwritten/marked entries accurately.
+Rules:
+- If a field is empty/blank, return "".
+- Checkboxes: Status (Active/Left), Gender (Male/Female/Other).
+- Return ONLY valid JSON format without markdown ticks.
+{
+  "session": "", "staffId": "", "status": "", "staffName": "", "fatherHusbandName": "",
+  "dob": "", "gender": "", "bloodGroup": "", "qualification": "", "experience": "",
+  "mobile": "", "altMobile": "", "email": "", "currentAddress": "", "permanentAddress": "",
+  "designation": "", "doj": "", "salary": "", "aadhaar": "", "bankName": "",
+  "accountNumber": "", "ifsc": "", "upiId": "", "declarationDate": "", "declarationPlace": "", "signatureText": ""
+}`;
+
+        // Gemini API कॉल
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: prompt },
+                { inline_data: { mime_type: "image/jpeg", data: current.base64 } }
+              ]
+            }],
+            generationConfig: {
+              response_mime_type: "application/json",
+              temperature: 0.1
+            }
+          })
+        });
+
+        if (!response.ok) {
+          const errData = await response.text();
+          throw new Error("HTTP " + response.status + ": " + errData);
+        }
+
+        const data = await response.json();
+        let rawText = data.candidates[0].content.parts[0].text.trim();
+        if (rawText.startsWith("```json")) rawText = rawText.slice(7);
+        if (rawText.startsWith("```")) rawText = rawText.slice(3);
+        if (rawText.endsWith("```")) rawText = rawText.slice(0, -3);
+
+        const extracted = JSON.parse(rawText.trim());
+
+        // रो डेटा तैयार करना
+        const record = {
+          "Sl No": records.length + 1,
+          "Timestamp": new Date().toLocaleString("en-IN"),
+          "Session": extracted.session || "",
+          "Staff ID": extracted.staffId || "",
+          "Status": extracted.status || "",
+          "Staff Name": extracted.staffName || "",
+          "Father / Husband Name": extracted.fatherHusbandName || "",
+          "DOB": extracted.dob || "",
+          "Gender": extracted.gender || "",
+          "Blood Group": extracted.bloodGroup || "",
+          "Highest Qualification": extracted.qualification || "",
+          "Total Experience": extracted.experience || "",
+          "Mobile Number": extracted.mobile || "",
+          "Alt Mobile": extracted.altMobile || "",
+          "Email ID": extracted.email || "",
+          "Current Address": extracted.currentAddress || "",
+          "Permanent Address": extracted.permanentAddress || "",
+          "Designation": extracted.designation || "",
+          "Date of Joining (DOJ)": extracted.doj || "",
+          "Monthly Salary": extracted.salary || "",
+          "Aadhaar Number": extracted.aadhaar || "",
+          "Bank Name": extracted.bankName || "",
+          "Account Number": extracted.accountNumber || "",
+          "IFSC Code": extracted.ifsc || "",
+          "UPI ID": extracted.upiId || "",
+          "Declaration Date": extracted.declarationDate || "",
+          "Declaration Place": extracted.declarationPlace || "",
+          "Signature Text": extracted.signatureText || ""
+        };
+
+        // ब्राउज़र की मेमोरी (LocalStorage) में सुरक्षित करना
+        records.push(record);
+        localStorage.setItem("scanned_staff_records", JSON.stringify(records));
+
+        updateLogItem(current.id, (record["Staff Name"] || "फ़ॉर्म") + " (सेव हुआ)", "badge-done");
+      } catch (err) {
+        console.error(err);
+        updateLogItem(current.id, "त्रुटि (पुनः खींचें)", "badge-error");
+      } finally {
+        queue.shift();
+        isProcessing = false;
+        updateCounters();
+        processQueue(); // कतार में अगली फ़ोटो प्रोसेस करें
+      }
+    }
+
+    // सभी रिकॉर्ड्स को एक साथ .xlsx में डाउनलोड करना
+    function exportToExcel() {
+      if (records.length === 0) {
+        alert("डाउनलोड करने के लिए अभी कोई रिकॉर्ड उपलब्ध नहीं है।");
+        return;
+      }
+
+      // JSON से Excel शीट बनाना
+      const worksheet = XLSX.utils.json_to_sheet(records, { header: EXCEL_HEADERS });
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Staff Details");
+
+      // कॉलम की चौड़ाई ऑटो-सेट करना
+      const colWidths = EXCEL_HEADERS.map(h => ({ wch: Math.max(h.length, 16) }));
+      worksheet['!cols'] = colWidths;
+
+      // फ़ाइल डाउनलोड
+      const dateStr = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(workbook, `Ambedkar_Public_School_Staff_${dateStr}.xlsx`);
+    }
+
+    // नया बैच शुरू करने के लिए मेमोरी क्लियर करना
+    function clearAllData() {
+      if (records.length === 0 && queue.length === 0) return;
+      const confirmClear = confirm(`क्या आप सभी ${records.length} रिकॉर्ड्स साफ़ करके नया बैच शुरू करना चाहते हैं? (डाउनलोड किया हुआ सुरक्षित रहेगा)`);
+      if (confirmClear) {
+        records = [];
+        queue = [];
+        localStorage.removeItem("scanned_staff_records");
+        updateCounters();
+        document.getElementById('logList').innerHTML = '<div style="color: #888; text-align: center; padding: 25px;">मेमोरी खाली हो गई। नए सिरे से स्कैन करें!</div>';
+      }
+    }
+  </script>
+</body>
+</html>
